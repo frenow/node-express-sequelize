@@ -1,0 +1,170 @@
+<!-- index.html -->
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Empresas</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.7.1/css/bulma.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/2.5.17-beta.0/vue.js"></script>
+  <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+  <style>
+    .section-container {
+      max-width: 800px;
+      margin-right: auto;
+      margin-left: auto;
+    }
+  </style>
+</head>
+<body>
+  <div id="app" class="container">
+    <section class="section section-container" style="padding-top: 24px; padding-bottom: 5px;">
+        <h2 class="title">Empresas</h2>
+        <empresa v-for="empresa in empresas"
+            :key="empresa.nome"
+            :empresa="empresa"
+            @save-empresa="onAddOrUpdateEmpresa" 
+            @delete-empresa="deleteEmpresa" />
+    </section>
+    <section class="section section-container" style="padding-bottom: 10px;">
+      <div class="box">
+        <add-update-empresa title="Add Empresa" @save-empresa="onAddOrUpdateEmpresa" />
+      </div>
+    </section>
+  </div>
+  <script>
+  const AddUpdateEmpresa = {
+    props: ['empresa', 'title'],
+    data () {
+      return {
+        id: this.empresa ? this.empresa.id : null,
+        nome: this.empresa ? this.empresa.nome : '',
+        documento: this.empresa ? this.empresa.documento : ''
+      }
+    },
+    methods: {
+      save() {
+        this.$emit('save-empresa', { id: this.id, nome: this.nome, 
+        documento: this.documento })
+        if (!this.id) {
+          this.nome = ''
+          this.documento = ''
+        }
+      }
+    },
+    template: `
+      <form class="form" @submit.prevent="save">
+        <h3 class='subtitle'>{{ title }}</h3>
+        <div class="field">
+            <label>Nome</label>
+            <div class="control">
+              <input class="input" type="text" v-model="nome">
+            </div> 
+        </div>
+        <div class="field">
+            <label>Documento</label>
+            <div class="control">
+              <input class="input" type="text" v-model="documento">
+            </div> 
+        </div>
+        <div class="field">
+            <div class="control">
+              <button class="button is-success">Save</button>
+            </div> 
+        </div>
+      </form>
+    `
+  }
+
+  const Empresa = {
+    props: ['empresa'],
+    components: { 'add-update-empresa': AddUpdateEmpresa },
+    data () {
+      return {
+        showDetail: false
+      }
+    },
+    methods: {
+      onAddOrUpdateEmpresa(empresa) {
+        this.$emit('save-empresa', empresa)
+      },
+      deleteEmpresa (empresa) {
+        this.$emit('delete-empresa', empresa)
+      }
+    },
+    template: `
+      <div class="card">
+        <header class="card-header">
+          <p @click="showDetail = !showDetail" class="card-header-title">
+            {{ empresa.id }} {{ empresa.nome }} {{empresa.documento}}
+          </p>
+          <a class="card-header-icon" @click.stop="deleteEmpresa(empresa)">
+            <span class="icon">
+              <i class="fa fa-trash"></i>
+            </span>
+          </a>
+        </header>
+        <div v-show="showDetail" class="card-content">
+            <add-update-empresa title="Detalhes" :empresa="empresa" @save-empresa="onAddOrUpdateEmpresa" />
+        </div>
+      </div>
+    `
+  }
+
+  new Vue({
+    el: '#app',
+    components: { empresa: Empresa, 'add-update-empresa': AddUpdateEmpresa },
+    data: {
+      empresas: [],
+      apiURL: 'http://localhost:3000/api/empresas'
+    },
+    methods: {
+      onAddOrUpdateEmpresa (empresa) {
+        if (empresa.id) {
+          this.updateEmpresa(empresa)
+        } else {
+          this.addEmpresa(empresa)
+        }
+      },
+      addEmpresa (empresa) {
+        return axios.post(this.apiURL, empresa)
+          .then((response) => {
+            const copy = this.empresas.slice()
+            copy.push(response.data)
+            this.empresas = copy
+          })
+      },
+      updateEmpresa (empresa) {
+        return axios.put(`${this.apiURL}/${empresa.id}`, empresa)
+          .then((response) => {
+            const copy = this.empresas.slice()
+            const idx = copy.findIndex((c) => c.id === response.data.id)
+            copy[idx] = response.data
+            this.empresas = copy
+          })
+      },
+      deleteEmpresa (empresa) {
+        console.log('deleting', empresa)
+        return axios.delete(`${this.apiURL}/${empresa.id}`)
+          .then((response) => {
+            let copy = this.empresas.slice()
+            const idx = copy.findIndex((c) => c.id === response.data.id)
+            copy.splice(idx, 1)
+            this.empresas = copy
+          })
+      }
+    },
+    beforeMount () {
+      axios.get(this.apiURL)
+        .then((response) => {
+          this.empresas = response.data
+        })
+    }
+  })
+
+  </script>
+</body>
+</html>
+
